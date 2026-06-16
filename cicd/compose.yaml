@@ -42,6 +42,11 @@ services:
     image: jenkins/agent:latest
     command: sleep infinity
 
+  ssh-agent:
+    image: jenkins/ssh-agent:latest
+    environment:
+      JENKINS_AGENT_SSH_PUBKEY: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDoN8Sw7hb/Ov2sY0tu533O0pgHM0wRQiQjTn6h8D1Fs jenkins-ssh-agent
+
   jenkins-cli:
     image: jenkins/jenkins:lts-jdk21
     profiles:
