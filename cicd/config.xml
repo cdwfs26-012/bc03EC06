@@ -1,0 +1,45 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job">
+  <actions/>
+  <description>Pipeline de test du projet Water dans un conteneur Python 3.11.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps">
+    <script>pipeline {
+  agent any
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git branch: 'main', url: 'https://github.com/turban-sizzle/fluffy-octo-sniffle.git'
+      }
+    }
+
+    stage('Tests Python 3.11') {
+      agent {
+        docker {
+          image 'python:3.11'
+          reuseNode true
+        }
+      }
+      steps {
+        sh '''
+          python --version
+          pip install -r requirements.txt
+          pytest --cov . --cov-report xml
+        '''
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'coverage.xml', allowEmptyArchive: true
+    }
+  }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

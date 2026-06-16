@@ -3,14 +3,22 @@ services:
     build:
       context: .
       dockerfile_inline: |
+        FROM docker:cli AS docker-cli
         FROM jenkins/jenkins:lts-jdk21
+        USER root
+        COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
+        USER jenkins
         RUN jenkins-plugin-cli --plugins workflow-aggregator git docker-workflow
         RUN mkdir -p /usr/share/jenkins/ref/init.groovy.d && printf '%s\n' \
           'import jenkins.model.Jenkins' \
+          'import jenkins.model.JenkinsLocationConfiguration' \
           'import hudson.security.HudsonPrivateSecurityRealm' \
           'import hudson.security.FullControlOnceLoggedInAuthorizationStrategy' \
           '' \
           'def instance = Jenkins.get()' \
+          'def location = JenkinsLocationConfiguration.get()' \
+          'location.setUrl(System.getenv("JENKINS_URL") ?: "http://localhost:8080/")' \
+          'location.save()' \
           'def realm = new HudsonPrivateSecurityRealm(false)' \
           'def user = System.getenv("JENKINS_ADMIN_ID") ?: "admin"' \
           'def password = System.getenv("JENKINS_ADMIN_PASSWORD") ?: "admin"' \
@@ -26,12 +34,15 @@ services:
     environment:
       JENKINS_ADMIN_ID: admin
       JENKINS_ADMIN_PASSWORD: admin
+      JENKINS_URL: http://jenkins:8080/
       JAVA_OPTS: -Djenkins.install.runSetupWizard=false
+    user: root
     ports:
       - "8080:8080"
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 
   agent-1:
@@ -59,6 +70,7 @@ services:
       JENKINS_API_TOKEN: admin
     volumes:
       - jenkins_home:/var/jenkins_home
+      - ./config.xml:/tmp/water-tests-config.xml:ro
     entrypoint: /bin/sh
     command:
       - -c
@@ -89,6 +101,8 @@ services:
         EOF
           java -jar /tmp/jenkins-cli.jar -s "$$JENKINS_URL" -auth "$$JENKINS_USER_ID:$$JENKINS_API_TOKEN" create-node "$$node" < "/tmp/$$node.xml" || true
         done
+        java -jar /tmp/jenkins-cli.jar -s "$$JENKINS_URL" -auth "$$JENKINS_USER_ID:$$JENKINS_API_TOKEN" create-job water-tests < /tmp/water-tests-config.xml || \
+          java -jar /tmp/jenkins-cli.jar -s "$$JENKINS_URL" -auth "$$JENKINS_USER_ID:$$JENKINS_API_TOKEN" update-job water-tests < /tmp/water-tests-config.xml
 
 volumes:
   jenkins_home:
