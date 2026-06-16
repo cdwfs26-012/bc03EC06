@@ -5,6 +5,28 @@ services:
       dockerfile_inline: |
         FROM jenkins/jenkins:lts-jdk21
         RUN jenkins-plugin-cli --plugins workflow-aggregator git docker-workflow
+        RUN mkdir -p /usr/share/jenkins/ref/init.groovy.d && printf '%s\n' \
+          'import jenkins.model.Jenkins' \
+          'import hudson.security.HudsonPrivateSecurityRealm' \
+          'import hudson.security.FullControlOnceLoggedInAuthorizationStrategy' \
+          '' \
+          'def instance = Jenkins.get()' \
+          'def realm = new HudsonPrivateSecurityRealm(false)' \
+          'def user = System.getenv("JENKINS_ADMIN_ID") ?: "admin"' \
+          'def password = System.getenv("JENKINS_ADMIN_PASSWORD") ?: "admin"' \
+          'if (realm.getUser(user) == null) {' \
+          '  realm.createAccount(user, password)' \
+          '}' \
+          'instance.setSecurityRealm(realm)' \
+          'def strategy = new FullControlOnceLoggedInAuthorizationStrategy()' \
+          'strategy.setAllowAnonymousRead(false)' \
+          'instance.setAuthorizationStrategy(strategy)' \
+          'instance.save()' \
+          > /usr/share/jenkins/ref/init.groovy.d/security.groovy
+    environment:
+      JENKINS_ADMIN_ID: admin
+      JENKINS_ADMIN_PASSWORD: admin
+      JAVA_OPTS: -Djenkins.install.runSetupWizard=false
     ports:
       - "8080:8080"
       - "50000:50000"
@@ -19,6 +41,49 @@ services:
   agent-2:
     image: jenkins/agent:latest
     command: sleep infinity
+
+  jenkins-cli:
+    image: jenkins/jenkins:lts-jdk21
+    profiles:
+      - tools
+    depends_on:
+      - jenkins
+    environment:
+      JENKINS_URL: http://jenkins:8080
+      JENKINS_USER_ID: admin
+      JENKINS_API_TOKEN: admin
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -eu
+        until curl -fsS "$$JENKINS_URL/login" >/dev/null; do
+          sleep 5
+        done
+        curl -fsS "$$JENKINS_URL/jnlpJars/jenkins-cli.jar" -o /tmp/jenkins-cli.jar
+        for node in agent-1 agent-2; do
+          cat > "/tmp/$$node.xml" <<EOF
+        <slave>
+          <name>$$node</name>
+          <remoteFS>/home/jenkins/agent</remoteFS>
+          <numExecutors>1</numExecutors>
+          <mode>NORMAL</mode>
+          <retentionStrategy class="hudson.slaves.RetentionStrategy\$$Always"/>
+          <launcher class="hudson.slaves.JNLPLauncher">
+            <workDirSettings>
+              <disabled>false</disabled>
+              <internalDir>remoting</internalDir>
+              <failIfWorkDirIsMissing>false</failIfWorkDirIsMissing>
+            </workDirSettings>
+          </launcher>
+          <label>docker-agent</label>
+          <nodeProperties/>
+        </slave>
+        EOF
+          java -jar /tmp/jenkins-cli.jar -s "$$JENKINS_URL" -auth "$$JENKINS_USER_ID:$$JENKINS_API_TOKEN" create-node "$$node" < "/tmp/$$node.xml" || true
+        done
 
 volumes:
   jenkins_home:
