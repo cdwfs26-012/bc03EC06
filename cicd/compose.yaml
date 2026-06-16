@@ -1,0 +1,16 @@
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM jenkins/jenkins:lts-jdk21
+        RUN jenkins-plugin-cli --plugins workflow-aggregator git docker-workflow
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
