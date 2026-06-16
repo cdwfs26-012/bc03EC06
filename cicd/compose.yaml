@@ -58,6 +58,13 @@ services:
     environment:
       JENKINS_AGENT_SSH_PUBKEY: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDoN8Sw7hb/Ov2sY0tu533O0pgHM0wRQiQjTn6h8D1Fs jenkins-ssh-agent
 
+  registry:
+    image: registry:3
+    ports:
+      - "5001:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+
   jenkins-cli:
     image: jenkins/jenkins:lts-jdk21
     profiles:
@@ -106,3 +113,4 @@ services:
 
 volumes:
   jenkins_home:
+  registry_data:

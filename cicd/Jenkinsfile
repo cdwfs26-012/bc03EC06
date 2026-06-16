@@ -3,7 +3,7 @@ pipeline {
 
   environment {
     APP_DIR = 'water-source'
-    APP_IMAGE = 'water:ci'
+    APP_IMAGE = 'localhost:5001/water:ci'
   }
 
   stages {
@@ -41,6 +41,12 @@ pipeline {
             --tag "$APP_IMAGE" \
             "$APP_DIR"
         '''
+      }
+    }
+
+    stage('Push image') {
+      steps {
+        sh 'docker push "$APP_IMAGE"'
       }
     }
   }
