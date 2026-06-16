@@ -4,6 +4,8 @@ pipeline {
   environment {
     APP_DIR = 'water-source'
     APP_IMAGE = 'localhost:5001/water:ci'
+    DEPLOY_CONTAINER = 'water-app'
+    DEPLOY_PORT = '8000'
   }
 
   stages {
@@ -47,6 +49,25 @@ pipeline {
     stage('Push image') {
       steps {
         sh 'docker push "$APP_IMAGE"'
+      }
+    }
+
+    stage('Deploy on host') {
+      steps {
+        sh '''
+          docker pull "$APP_IMAGE"
+          docker rm -f "$DEPLOY_CONTAINER" || true
+          docker run -d \
+            --name "$DEPLOY_CONTAINER" \
+            -p "$DEPLOY_PORT:5000" \
+            "$APP_IMAGE" \
+            sh -c 'printf "{\"water\": 0}" > water.json && python -m flask --app app run --host=0.0.0.0 --port=5000'
+          for i in 1 2 3 4 5; do
+            curl -fsS "http://localhost:$DEPLOY_PORT/water" && break
+            sleep 2
+          done
+          docker ps --filter "name=$DEPLOY_CONTAINER"
+        '''
       }
     }
   }
