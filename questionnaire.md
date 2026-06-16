@@ -24,13 +24,6 @@ Le schema ci-dessous reprend les etapes principales du pipeline CI/CD du projet 
 ![Schema du pipeline CI/CD](./schema-pipeline.png)
 ```
 
-![Schema du pipeline CI/CD](./schema-pipeline.png)
-
-Le fichier source du schema est present a la racine du dossier :
-
-```text
-schema-pipeline.svg
-```
 
 ## 3. Reproduction de la pipeline avec Jenkins
 
