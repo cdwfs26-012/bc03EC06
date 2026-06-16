@@ -12,5 +12,13 @@ services:
       - jenkins_home:/var/jenkins_home
     restart: unless-stopped
 
+  agent-1:
+    image: jenkins/agent:latest
+    command: sleep infinity
+
+  agent-2:
+    image: jenkins/agent:latest
+    command: sleep infinity
+
 volumes:
   jenkins_home:
