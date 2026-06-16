@@ -1,10 +1,17 @@
 pipeline {
   agent any
 
+  environment {
+    APP_DIR = 'water-source'
+    APP_IMAGE = 'water:ci'
+  }
+
   stages {
     stage('Checkout') {
       steps {
-        git branch: 'main', url: 'https://github.com/turban-sizzle/fluffy-octo-sniffle.git'
+        dir(env.APP_DIR) {
+          git branch: 'main', url: 'https://github.com/turban-sizzle/fluffy-octo-sniffle.git'
+        }
       }
     }
 
@@ -16,10 +23,23 @@ pipeline {
         }
       }
       steps {
+        dir(env.APP_DIR) {
+          sh '''
+            python --version
+            pip install -r requirements.txt
+            pytest --cov . --cov-report xml
+          '''
+        }
+      }
+    }
+
+    stage('Build image') {
+      steps {
         sh '''
-          python --version
-          pip install -r requirements.txt
-          pytest --cov . --cov-report xml
+          docker build \
+            --file cicd/Dockerfile \
+            --tag "$APP_IMAGE" \
+            "$APP_DIR"
         '''
       }
     }
@@ -27,7 +47,7 @@ pipeline {
 
   post {
     always {
-      archiveArtifacts artifacts: 'coverage.xml', allowEmptyArchive: true
+      archiveArtifacts artifacts: "${APP_DIR}/coverage.xml", allowEmptyArchive: true
     }
   }
 }
